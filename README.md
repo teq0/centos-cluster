@@ -17,3 +17,8 @@ Each VM (currently runs one zookeeper instance and one kafka instance, both from
 * Add in Datastax Enterprise
 * Tidy up extremely ugly code
 * Lots more
+
+## ./vendor
+The scripts rely on some files to be in the ./vendor folder (from the project root).
+
+I'll add a list of what they are Real Soon Now, and update the install scripts to optionally take different versions of things like the Java runtime
