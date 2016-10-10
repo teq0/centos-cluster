@@ -12,6 +12,23 @@ KAFKA_BROKER_ID=
 KAFKA_ZK=
 UPGRADE=1
 
+# docker repos
+# [0] is the internet
+# [1] is a repo on the host system
+# [2] is CBA artefactory (TODO - get the URLs for the CBA Artifactory repos
+
+DOCKER_REPO_ID=0
+
+DOCKER_REPO[0]="confluentinc"
+DOCKER_REPO[1]="10.0.2.2:5000/confluentinc"
+DOCKER_REPO[2]="no idea"
+
+CURRENT_DOCKER_REPO=${DOCKER_REPO[$DOCKER_REPO_ID]}
+
+# local docker registry not currently working either
+
+echo Current docker repo is $CURRENT_DOCKER_REPO
+
 # parse our arguments
 
 while [[ $# -gt 1 ]]
@@ -97,6 +114,8 @@ echo Installing dependencies...
 
 # install java jre 1.8
 
+# NOTE: Confluent include Zulu OpenJDK in their images so this isn't necessary unless we start running other Java stuff.
+
 if ! type java >/dev/null 2>&1
 then
     JAVA_VER=0
@@ -156,6 +175,7 @@ fi
 #ls /usr/bin/consul
 #echo Finished installing and chmoding...
 
+
 #TODO - implement an upgrade flag in these scripts so we can selectively upgrade instead of removing and recreating the containers every time
 
 # some utility functions we will need in various places
@@ -197,28 +217,26 @@ source /etc/cba-kafka/functions.sh
 if docker_container_running zk;
 then
     echo Stopping old zk container...
-    docker stop zk
+    docker stop zk >/dev/null
 fi
 
 if docker_container_exists zk;
 then
     echo Removing old zk container...
-    docker rm zk
+    docker rm zk >/dev/null
 fi
 
 docker run -d \
     --name zk \
-    -e ZOOKEEPER_SERVER_ID=$ZK_ID \
-    -e ZOOKEEPER_SERVERS="$ZK_SERVERS" \
-    -e ZOOKEEPER_CLIENT_PORT=2181 \
-    -e ZOOKEEPER_TICK_TIME=2000 \
-    -e ZOOKEEPER_INIT_LIMIT=5 \
-    -e ZOOKEEPER_SYNC_LIMIT=2 \
-    -p 2181:2181 \
-    -p 2888:2888 \
-    -p 3888:3888 \
-    --net=host \
-    confluentinc/cp-zookeeper
+    -e ZOOKEEPER_SERVER_ID=$ZK_ID \\
+    -e ZOOKEEPER_SERVERS="$ZK_SERVERS" \\
+    -e ZOOKEEPER_CLIENT_PORT=2181 \\
+    -e ZOOKEEPER_TICK_TIME=2000 \\
+    -e ZOOKEEPER_INIT_LIMIT=5 \\
+    -e ZOOKEEPER_SYNC_LIMIT=2 \\
+    -P \\
+    --net=host \\
+    $CURRENT_DOCKER_REPO/cp-zookeeper:3.0.1
 EOL
 
 sudo chmod +x /etc/cba-kafka/zk.sh
@@ -230,23 +248,23 @@ source /etc/cba-kafka/functions.sh
 if docker_container_running kafka;
 then
     echo Stopping old kafka container...
-    docker stop kafka 2> /dev/null
+    docker stop kafka >/dev/null
 fi
 
 if docker_container_exists kafka;
 then
     echo Removing old kafka container...
-    docker rm kafka 2> /dev/null
+    docker rm kafka >/dev/null
 fi
 
-docker run -d \
-    --name kafka \
-    -e KAFKA_ZOOKEEPER_CONNECT=$KAFKA_ZK \
-    -e KAFKA_BROKER_ID=$KAFKA_BROKER_ID \
-    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://:9092 \
-    -p 9092:9092 \
-    --net=host \
-    confluentinc/cp-kafka
+docker run -d \\
+    --name kafka \\
+    -e KAFKA_ZOOKEEPER_CONNECT=$KAFKA_ZK \\
+    -e KAFKA_BROKER_ID=$KAFKA_BROKER_ID \\
+    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://$IP:9092 \\
+    -P \\
+    --net=host \\
+    $CURRENT_DOCKER_REPO/cp-kafka:3.0.1
 EOL
 
 sudo chmod +x /etc/cba-kafka/kafka.sh
@@ -261,7 +279,7 @@ then
 else
     echo Starting zk...
     docker start zk 2> /dev/null
-    sleep 10
+    sleep 8
     echo Starting kafka...
     docker start kafka 2> /dev/null
 fi

@@ -28,8 +28,8 @@ end
 
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.provider = "parallels"
-  config.vm.provider = "virtualbox"
+  #config.vm.provider = "parallels"
+  #config.vm.provider = "virtualbox"
 
   config.vm.box = "bento/centos-7.2"
 
@@ -40,16 +40,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
       nodeconfig.vm.provider "parallels" do |prl|
         prl.name = node[:nodename]
-        prl.memory = 1024
+        prl.memory = 2048
         prl.cpus = 1
         # uncomment if you want to update the parallels tools
         # prl.update_guest_tools = true
       end
 
-      nodeconfig.vm.provider "virtualbox" do |vb|
-        vb.name = node[:nodename]
-        vb.memory = 1024
-        vb.cpus = 1
+      nodeconfig.vm.provider "virtualbox" do |v|
+        v.name = node[:nodename]
+        v.memory = 2048
+        v.cpus = 1
       end
 
       nodeconfig.vm.provision "shell" do |s|
