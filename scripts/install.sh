@@ -217,6 +217,7 @@ source /etc/cba-kafka/functions.sh
 if docker_container_running zk;
 then
     echo Stopping old zk container...
+    systemctl disable docker-zk.service
     docker stop zk >/dev/null
 fi
 
@@ -225,6 +226,25 @@ then
     echo Removing old zk container...
     docker rm zk >/dev/null
 fi
+
+if [ ! -d /opt/zk_data ]
+then
+    sudo mkdir /opt/zk_data
+    sudo chmod a+w /opt/zk_data
+    echo "/opt/zk_data created"
+else
+    echo "/opt/zk_data exists"
+fi
+
+if [ ! -d /opt/zk_logs ]
+then
+    sudo mkdir /opt/zk_logs
+    sudo chmod a+w /opt/zk_logs
+    echo "/opt/zk_logs created"
+else
+    echo "/opt/zk_logs exists"
+fi
+
 
 docker run -d \
     --name zk \
@@ -236,7 +256,9 @@ docker run -d \
     -e ZOOKEEPER_SYNC_LIMIT=2 \\
     -P \\
     --net=host \\
-    $CURRENT_DOCKER_REPO/cp-zookeeper:3.0.1
+    -v /opt/zk_data:/var/lib/zookeeper/data \\
+    -v /opt/zk_logs:/var/lib/zookeeper/log \\
+     $CURRENT_DOCKER_REPO/cp-zookeeper:3.0.1
 EOL
 
 sudo chmod +x /etc/cba-kafka/zk.sh
@@ -248,6 +270,7 @@ source /etc/cba-kafka/functions.sh
 if docker_container_running kafka;
 then
     echo Stopping old kafka container...
+    systemctl disable docker-kafka.service
     docker stop kafka >/dev/null
 fi
 
@@ -257,6 +280,15 @@ then
     docker rm kafka >/dev/null
 fi
 
+if [ ! -d /opt/kafka_data ]
+then
+    sudo mkdir /opt/kafka_data
+    sudo chmod a+w /opt/kafka_data
+    echo "/opt/kafka_data created"
+else
+    echo "/opt/kafka_data exists"
+fi
+
 docker run -d \\
     --name kafka \\
     -e KAFKA_ZOOKEEPER_CONNECT=$KAFKA_ZK \\
@@ -264,10 +296,42 @@ docker run -d \\
     -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://$IP:9092 \\
     -P \\
     --net=host \\
+    -v /opt/kakfa_data:/var/lib/kafka/data \\
     $CURRENT_DOCKER_REPO/cp-kafka:3.0.1
 EOL
 
 sudo chmod +x /etc/cba-kafka/kafka.sh
+
+sudo cat > /etc/cba-kafka/schema-registry.sh << EOL
+
+source /etc/cba-kafka/functions.sh
+
+if docker_container_running schema-registry;
+then
+    echo Stopping old schema-registry container...
+    systemctl disable docker-schema-registry.service
+    docker stop schema-registry >/dev/null
+fi
+
+if docker_container_exists schema-regisry;
+then
+    echo Removing old schema-registry container...
+    docker rm schema-registry >/dev/null
+fi
+
+docker run -d \\
+  --net=host \\
+  --name=schema-registry \\
+  -P \\
+  -e SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL=$IP:2181 \\
+  -e SCHEMA_REGISTRY_HOST_NAME=$NODE_NAME \\
+  -e SCHEMA_REGISTRY_LISTENERS=http://0.0.0.0:8081 \\
+  -e SCHEMA_REGISTRY_DEBUG=true \\
+  confluentinc/cp-schema-registry:3.0.1
+
+EOL
+
+sudo chmod +x /etc/cba-kafka/schema-registry.sh
 
 if [ $UPGRADE = 1 ];
 then
@@ -276,12 +340,18 @@ then
     sleep 10
     echo Creating kafka container
     /etc/cba-kafka/kafka.sh
+    sleep 10
+    echo Creating schema-registry container
+    /etc/cba-kafka/schema-registry.sh
 else
     echo Starting zk...
     docker start zk 2> /dev/null
     sleep 8
     echo Starting kafka...
     docker start kafka 2> /dev/null
+    sleep 8
+    echo Starting schema-registry...
+    docker start schema-registry 2> /dev/null
 fi
 
 # start our containers at boot
@@ -316,10 +386,26 @@ ExecStop=/usr/bin/docker stop -t 2 kafka
 WantedBy=default.target
 EOL
 
+sudo cat > /etc/systemd/system/docker-schema-registry.service << EOL
+[Unit]
+Description=Schema registry container
+Requires=docker.service
+After=docker-kafka.service
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/docker start -a schema-registry
+ExecStop=/usr/bin/docker stop -t 2 schema-registry
+
+[Install]
+WantedBy=default.target
+EOL
+
 echo Enabling auto-start
 
 systemctl enable docker-zk.service
 systemctl enable docker-kafka.service
+systemctl enable docker-schema-registry.service
 
 # this is consul stuff, maybe add in later
 
