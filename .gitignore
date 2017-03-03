@@ -2,3 +2,6 @@
 .vagrant/
 .idea/
 vendor/
+ebx/
+nginx.keytab
+
