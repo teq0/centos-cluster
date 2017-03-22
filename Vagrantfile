@@ -16,6 +16,7 @@ nodes = [
 zk_servers = { "dc1" => "", "dc2" => "" }
 kafka_servers = { "dc1" => "", "dc2" => "" }
 kafka_bootstrap = { "dc1" => "", "dc2" => "" }
+dc_primary = { "dc1" => "", "dc2" => "" }
 comma = { "dc1" => "", "dc2" => "" }
 semicolon = { "dc1" => "", "dc2" => "" }
 
@@ -25,6 +26,10 @@ nodes.each do |node|
     kafka_bootstrap[node[:dc]] << "#{comma[node[:dc]]}#{node[:ip]}:9092"
     comma[node[:dc]] = ","
     semicolon[node[:dc]] = ";"
+
+    if node[:master] == ''
+        dc_primary[node[:dc]] << "#{node[:ip]}"
+    end
 end
 
 
@@ -66,6 +71,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                     "-kafka_id", node[:kafka_broker_id],
                     "-kafka_zk", kafka_servers[node[:dc]],
                     "-kafka_bootstrap", kafka_bootstrap[node[:dc]],
+                    "-prim", dc_primary[node[:dc]],
                     "-v"
                   ]
       end
