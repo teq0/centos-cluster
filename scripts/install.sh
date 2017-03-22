@@ -66,6 +66,13 @@ DOCKER_KAFKA_REST_IMAGE=cp-kafka-rest
 DOCKER_KAFKA_CONNECT_IMAGE=cp-enterprise-replicator
 DOCKER_CONTROL_CENTER_IMAGE=cp-enterprise-control-center
 
+# a folder for our scripts
+if [ ! -d /etc/kafka-env ]
+then
+    sudo mkdir /etc/kafka-env
+    sudo chmod a+w /etc/kafka-env
+    echo "/etc/kafka-env created"
+fi
 
 #====================================================================================================================
 #
@@ -344,14 +351,6 @@ EOL
 
     fi
 
-fi
-
-# a folder for our scripts
-if [ ! -d /etc/kafka-env ]
-then
-    sudo mkdir /etc/kafka-env
-    sudo chmod a+w /etc/kafka-env
-    echo "/etc/kafka-env created"
 fi
 
 # echo Installing dependencies...
