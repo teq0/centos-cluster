@@ -46,7 +46,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
       nodeconfig.vm.provider "parallels" do |prl|
         prl.name = node[:nodename]
-        prl.memory = 1576
+        if node[:master] == ""
+            prl.memory = 2560
+        else
+            prl.memory = 1576
+        end
+
         prl.cpus = 1
         # uncomment if you want to update the parallels tools
         # prl.update_guest_tools = true
@@ -57,6 +62,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         v.name = node[:nodename]
         v.memory = 1576
         v.cpus = 1
+
       end
 
       nodeconfig.vm.provision "shell" do |s|
